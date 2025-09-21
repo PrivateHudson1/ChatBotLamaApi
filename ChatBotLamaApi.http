@@ -1,0 +1,6 @@
+@ChatBotLamaApi_HostAddress = http://localhost:5164
+
+GET {{ChatBotLamaApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
