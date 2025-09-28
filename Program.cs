@@ -29,6 +29,9 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSignalR();
 
+builder.Configuration.AddEnvironmentVariables();
+
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -37,6 +40,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+
 
 //app.UseHttpsRedirection();
 app.UseDefaultFiles();

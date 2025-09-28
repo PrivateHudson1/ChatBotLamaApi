@@ -8,10 +8,11 @@ namespace ChatBotLamaApi.Services
      
         private readonly ILogger<ChatHub> _logger;
         private readonly HttpClient _httpClient;
-        private const string LlamaApiUrl = "http://192.168.0.3:8081/completion";
+        private readonly string _lamaApiUrl;
 
-        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger)
+        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger, IConfiguration config)
         {
+            _lamaApiUrl = config["LlamaApi:BaseUrl"];
             _httpClient = httpClient;
             _logger = logger;
         }
@@ -38,7 +39,7 @@ namespace ChatBotLamaApi.Services
 
                 var json = JsonSerializer.Serialize(requestData);
                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(LlamaApiUrl, content);
+                var response = await _httpClient.PostAsync(_lamaApiUrl, content);
 
                 if (response.IsSuccessStatusCode)
                 {
