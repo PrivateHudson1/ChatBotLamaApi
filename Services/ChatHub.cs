@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using System.Text.Json;
 
 namespace ChatBotLamaApi.Services
@@ -16,7 +17,7 @@ namespace ChatBotLamaApi.Services
             _logger = logger;
         }
 
-
+        [Authorize]
         public async Task SendMessage(string message)
         {
             var connectionId = Context.ConnectionId;
@@ -75,6 +76,7 @@ namespace ChatBotLamaApi.Services
             }
           
         }
+
 
         public override async Task OnConnectedAsync()
         {

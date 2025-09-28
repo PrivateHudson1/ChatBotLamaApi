@@ -1,7 +1,9 @@
+using ChatBotLamaApi.Handlers;
 using ChatBotLamaApi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
+var apiKey = builder.Configuration["ApiKey"] ?? "default-secret-key-123";
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -29,6 +31,19 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSignalR();
 
+
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = ApiKeyAuthenticationOptions.DefaultScheme;
+    options.DefaultChallengeScheme = ApiKeyAuthenticationOptions.DefaultScheme;
+})
+.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
+    ApiKeyAuthenticationOptions.DefaultScheme,
+    options => options.ApiKey = apiKey);
+
+builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -44,7 +59,10 @@ app.UseStaticFiles();
 
 app.UseCors();
 
+app.UseAuthentication();
 app.UseAuthorization();
+
+
 
 app.MapHub<ChatHub>("/chatHub");
 
