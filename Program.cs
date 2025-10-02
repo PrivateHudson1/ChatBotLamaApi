@@ -1,7 +1,9 @@
+using ChatBotLamaApi.Interfaces;
 using ChatBotLamaApi.Services;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
-
+var redisConnection = builder.Configuration["Redis:ConnectionString"];
 // Add services to the container.
 
 builder.Services.AddControllers();
@@ -15,6 +17,11 @@ builder.Services.AddHttpClient<ChatHub>(client =>
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.Add("User-Agent", "ChatBotApp");
 });
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(redisConnection));
+builder.Services.AddScoped<IRateLimiter, RedisRateLimiter>();
+
 
 builder.Services.AddCors(options =>
 {

@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
+﻿using ChatBotLamaApi.Interfaces;
+using Microsoft.AspNetCore.SignalR;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 
 namespace ChatBotLamaApi.Services
 {
@@ -9,9 +11,11 @@ namespace ChatBotLamaApi.Services
         private readonly ILogger<ChatHub> _logger;
         private readonly HttpClient _httpClient;
         private readonly string _lamaApiUrl;
+        private readonly IRateLimiter _rateLimiter;
 
-        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger, IConfiguration config)
+        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger, IConfiguration config, IRateLimiter rateLimiter)
         {
+            _rateLimiter = rateLimiter;
             _lamaApiUrl = config["LlamaApi:BaseUrl"];
             _httpClient = httpClient;
             _logger = logger;
@@ -20,9 +24,17 @@ namespace ChatBotLamaApi.Services
 
         public async Task SendMessage(string message)
         {
+            var httpContext = Context.GetHttpContext();
+            var userId = httpContext.Request.Cookies["user_id"];
+
             var connectionId = Context.ConnectionId;
             try
             {
+                if (!await _rateLimiter.AllowRequestAsync(userId))
+                {
+                    await Clients.Caller.SendAsync("Error", "Exceeded querial limits");
+                    return;
+                }
                 await Clients.Caller.SendAsync("ReceiveMessage", "AI", "Thinking...");
                 var prompt = $"<s>[INST] {message} [/INST]";
 
