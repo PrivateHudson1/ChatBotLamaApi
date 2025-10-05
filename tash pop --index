@@ -1,0 +1,338 @@
+[1mdiff --git a/ChatBotLamaApi.csproj b/ChatBotLamaApi.csproj[m
+[1mindex 0c56541..d9289fd 100644[m
+[1m--- a/ChatBotLamaApi.csproj[m
+[1m+++ b/ChatBotLamaApi.csproj[m
+[36m@@ -11,7 +11,7 @@[m
+   </ItemGroup>[m
+ [m
+   <ItemGroup>[m
+[31m-    <Folder Include="Controllers\" />[m
+[32m+[m[32m    <Folder Include="Models\Entities\" />[m
+   </ItemGroup>[m
+ [m
+ </Project>[m
+[1mdiff --git a/ChatBotLamaApi.csproj.user b/ChatBotLamaApi.csproj.user[m
+[1mindex 9ff5820..031db34 100644[m
+[1m--- a/ChatBotLamaApi.csproj.user[m
+[1m+++ b/ChatBotLamaApi.csproj.user[m
+[36m@@ -2,5 +2,7 @@[m
+ <Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">[m
+   <PropertyGroup>[m
+     <ActiveDebugProfile>https</ActiveDebugProfile>[m
+[32m+[m[32m    <Controller_SelectedScaffolderID>MvcControllerEmptyScaffolder</Controller_SelectedScaffolderID>[m
+[32m+[m[32m    <Controller_SelectedScaffolderCategoryPath>root/Common/MVC/Controller</Controller_SelectedScaffolderCategoryPath>[m
+   </PropertyGroup>[m
+ </Project>[m
+\ No newline at end of file[m
+[1mdiff --git a/Controllers/WorkController.cs b/Controllers/WorkController.cs[m
+[1mnew file mode 100644[m
+[1mindex 0000000..194b177[m
+[1m--- /dev/null[m
+[1m+++ b/Controllers/WorkController.cs[m
+[36m@@ -0,0 +1,13 @@[m
+[32m+[m[32m﻿using Microsoft.AspNetCore.Mvc;[m
+[32m+[m
+[32m+[m[32mnamespace ChatBotLamaApi.Controllers[m
+[32m+[m[32m{[m
+[32m+[m[32m    [ApiController][m
+[32m+[m[32m    [Route("api/[controller]")][m
+[32m+[m[32m    public class WorkController : Controller[m
+[32m+[m[32m    {[m
+[32m+[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/Models/ChatResponses/ChatResponse.cs b/Models/ChatResponses/ChatResponse.cs[m
+[1mnew file mode 100644[m
+[1mindex 0000000..803e7bb[m
+[1m--- /dev/null[m
+[1m+++ b/Models/ChatResponses/ChatResponse.cs[m
+[36m@@ -0,0 +1,6 @@[m
+[32m+[m[32m﻿namespace ChatBotLamaApi.Models.ChatResponses[m
+[32m+[m[32m{[m
+[32m+[m[32m    public class ChatResponse[m
+[32m+[m[32m    {[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/Models/Requests/ChatRequest.cs b/Models/Requests/ChatRequest.cs[m
+[1mnew file mode 100644[m
+[1mindex 0000000..4b9c14a[m
+[1m--- /dev/null[m
+[1m+++ b/Models/Requests/ChatRequest.cs[m
+[36m@@ -0,0 +1,11 @@[m
+[32m+[m[32m﻿using System.ComponentModel.DataAnnotations;[m
+[32m+[m
+[32m+[m[32mnamespace ChatBotLamaApi.Models.Requests[m
+[32m+[m[32m{[m
+[32m+[m[32m    public class ChatRequest[m
+[32m+[m[32m    {[m
+[32m+[m[41m        [m
+[32m+[m[32m        public string Message { get; set; }[m
+[32m+[m[32m        public int MaxTokens { get; set; }[m
+[32m+[m[32m    }[m
+[32m+[m[32m}[m
+[1mdiff --git a/Program.cs b/Program.cs[m
+[1mindex b7295a9..a6571d1 100644[m
+[1m--- a/Program.cs[m
+[1m+++ b/Program.cs[m
+[36m@@ -4,6 +4,7 @@[m [musing ChatBotLamaApi.Services;[m
+ var builder = WebApplication.CreateBuilder(args);[m
+ [m
+ var apiKey = builder.Configuration["ApiKey"] ?? "default-secret-key-123";[m
+[32m+[m[32mvar corsHost = builder.Configuration["CorsHost"] ?? string.Empty;[m
+ // Add services to the container.[m
+ [m
+ builder.Services.AddControllers();[m
+[36m@@ -22,7 +23,7 @@[m [mbuilder.Services.AddCors(options =>[m
+ {[m
+     options.AddDefaultPolicy(policy =>[m
+     {[m
+[31m-        policy.WithOrigins("http://localhost:5090")[m
+[32m+[m[32m        policy.WithOrigins("corsHost")[m
+               .AllowAnyMethod()[m
+               .AllowAnyHeader()[m
+               .AllowCredentials();[m
+[36m@@ -64,6 +65,8 @@[m [mapp.UseAuthorization();[m
+ [m
+ [m
+ [m
+[32m+[m[32mapp.UseRateLimiter();[m
+[32m+[m
+ app.MapHub<ChatHub>("/chatHub");[m
+ [m
+ app.MapControllers();[m
+[1mdiff --git a/Services/ChatHub.cs b/Services/ChatHub.cs[m
+[1mindex 2cd6d8f..5fe7b73 100644[m
+[1m--- a/Services/ChatHub.cs[m
+[1m+++ b/Services/ChatHub.cs[m
+[36m@@ -1,23 +1,27 @@[m
+ ﻿using Microsoft.AspNetCore.Authorization;[m
+ using Microsoft.AspNetCore.SignalR;[m
+[32m+[m[32musing Microsoft.Extensions.Configuration;[m
+ using System.Text.Json;[m
+ [m
+ namespace ChatBotLamaApi.Services[m
+ {[m
+     public class ChatHub : Hub[m
+     {[m
+[31m-     [m
+[32m+[m[32m        private readonly IConfiguration _configuration;[m
+[32m+[m
+         private readonly ILogger<ChatHub> _logger;[m
+         private readonly HttpClient _httpClient;[m
+[31m-        private const string LlamaApiUrl = "http://192.168.0.3:8081/completion";[m
+ [m
+[31m-        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger)[m
+[32m+[m[41m       [m
+[32m+[m
+[32m+[m[32m        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger, IConfiguration configuration)[m
+         {[m
+[32m+[m[32m            _configuration = configuration;[m
+             _httpClient = httpClient;[m
+             _logger = logger;[m
+         }[m
+ [m
+[31m-        [Authorize][m
+[32m+[m[41m        [m
+         public async Task SendMessage(string message)[m
+         {[m
+             var connectionId = Context.ConnectionId;[m
+[36m@@ -39,6 +43,9 @@[m [mnamespace ChatBotLamaApi.Services[m
+ [m
+                 var json = JsonSerializer.Serialize(requestData);[m
+                 var content = new StringContent(json, System.Text.Encoding.UTF8, "application/json");[m
+[32m+[m
+[32m+[m[32m                var LlamaApiUrl = _configuration.GetConnectionString("LlamaApiUrl");[m
+[32m+[m
+                 var response = await _httpClient.PostAsync(LlamaApiUrl, content);[m
+ [m
+                 if (response.IsSuccessStatusCode)[m
+[1mdiff --git a/appsettings.Development.json b/appsettings.Development.json[m
+[1mindex 0c208ae..b0c1046 100644[m
+[1m--- a/appsettings.Development.json[m
+[1m+++ b/appsettings.Development.json[m
+[36m@@ -1,8 +1,12 @@[m
+ {[m
+[32m+[m[32m  "ApiKey": "VrvefbvRE%bge",[m
+   "Logging": {[m
+     "LogLevel": {[m
+       "Default": "Information",[m
+       "Microsoft.AspNetCore": "Warning"[m
+     }[m
+[31m-  }[m
+[32m+[m[32m  },[m
+[32m+[m[32m  "CorsHost": "http://localhost:5090",[m
+[32m+[m[32m  "LlamaApiUrl": "http://192.168.0.3:8081/completion",[m
+[32m+[m[32m  "AllowedHosts": "*"[m
+ }[m
+[1mdiff --git a/appsettings.json b/appsettings.json[m
+[1mindex dcda095..fadeda3 100644[m
+[1m--- a/appsettings.json[m
+[1m+++ b/appsettings.json[m
+[36m@@ -6,5 +6,7 @@[m
+       "Microsoft.AspNetCore": "Warning"[m
+     }[m
+   },[m
+[32m+[m[32m  "CorsHost": "http://localhost:5090",[m
+[32m+[m[32m  "LlamaApiUrl": "http://localhost:8081/completion",[m
+   "AllowedHosts": "*"[m
+ }[m
+[1mdiff --git a/bin/Debug/net8.0/ChatBotLamaApi.dll b/bin/Debug/net8.0/ChatBotLamaApi.dll[m
+[1mindex ee1feb0..89830c7 100644[m
+Binary files a/bin/Debug/net8.0/ChatBotLamaApi.dll and b/bin/Debug/net8.0/ChatBotLamaApi.dll differ
+[1mdiff --git a/bin/Debug/net8.0/ChatBotLamaApi.exe b/bin/Debug/net8.0/ChatBotLamaApi.exe[m
+[1mindex b35b167..c0128ed 100644[m
+Binary files a/bin/Debug/net8.0/ChatBotLamaApi.exe and b/bin/Debug/net8.0/ChatBotLamaApi.exe differ
+[1mdiff --git a/bin/Debug/net8.0/ChatBotLamaApi.pdb b/bin/Debug/net8.0/ChatBotLamaApi.pdb[m
+[1mindex 1f5d88f..0acff5f 100644[m
+Binary files a/bin/Debug/net8.0/ChatBotLamaApi.pdb and b/bin/Debug/net8.0/ChatBotLamaApi.pdb differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.Caching.Abstractions.dll b/bin/Debug/net8.0/Microsoft.Extensions.Caching.Abstractions.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..672d210[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.Caching.Abstractions.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.Caching.StackExchangeRedis.dll b/bin/Debug/net8.0/Microsoft.Extensions.Caching.StackExchangeRedis.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..6d43950[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.Caching.StackExchangeRedis.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll b/bin/Debug/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..93d9e03[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.Logging.Abstractions.dll b/bin/Debug/net8.0/Microsoft.Extensions.Logging.Abstractions.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..15ada0c[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.Logging.Abstractions.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.Options.dll b/bin/Debug/net8.0/Microsoft.Extensions.Options.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..888a86a[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.Options.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Microsoft.Extensions.Primitives.dll b/bin/Debug/net8.0/Microsoft.Extensions.Primitives.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..7d3325b[m
+Binary files /dev/null and b/bin/Debug/net8.0/Microsoft.Extensions.Primitives.dll differ
+[1mdiff --git a/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll b/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..c5b223d[m
+Binary files /dev/null and b/bin/Debug/net8.0/Pipelines.Sockets.Unofficial.dll differ
+[1mdiff --git a/bin/Debug/net8.0/StackExchange.Redis.dll b/bin/Debug/net8.0/StackExchange.Redis.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..c2123dc[m
+Binary files /dev/null and b/bin/Debug/net8.0/StackExchange.Redis.dll differ
+[1mdiff --git a/bin/Debug/net8.0/System.Diagnostics.DiagnosticSource.dll b/bin/Debug/net8.0/System.Diagnostics.DiagnosticSource.dll[m
+[1mnew file mode 100644[m
+[1mindex 0000000..a84b66c[m
+Binary files /dev/null and b/bin/Debug/net8.0/System.Diagnostics.DiagnosticSource.dll differ
+[1mdiff --git a/bin/Debug/net8.0/appsettings.Development.json b/bin/Debug/net8.0/appsettings.Development.json[m
+[1mindex 0c208ae..b0c1046 100644[m
+[1m--- a/bin/Debug/net8.0/appsettings.Development.json[m
+[1m+++ b/bin/Debug/net8.0/appsettings.Development.json[m
+[36m@@ -1,8 +1,12 @@[m
+ {[m
+[32m+[m[32m  "ApiKey": "VrvefbvRE%bge",[m
+   "Logging": {[m
+     "LogLevel": {[m
+       "Default": "Information",[m
+       "Microsoft.AspNetCore": "Warning"[m
+     }[m
+[31m-  }[m
+[32m+[m[32m  },[m
+[32m+[m[32m  "CorsHost": "http://localhost:5090",[m
+[32m+[m[32m  "LlamaApiUrl": "http://192.168.0.3:8081/completion",[m
+[32m+[m[32m  "AllowedHosts": "*"[m
+ }[m
+[1mdiff --git a/bin/Debug/net8.0/appsettings.json b/bin/Debug/net8.0/appsettings.json[m
+[1mindex 10f68b8..fadeda3 100644[m
+[1m--- a/bin/Debug/net8.0/appsettings.json[m
+[1m+++ b/bin/Debug/net8.0/appsettings.json[m
+[36m@@ -1,9 +1,12 @@[m
+ {[m
+[32m+[m[32m  "ApiKey": "VrvefbvRE%bge",[m
+   "Logging": {[m
+     "LogLevel": {[m
+       "Default": "Information",[m
+       "Microsoft.AspNetCore": "Warning"[m
+     }[m
+   },[m
+[32m+[m[32m  "CorsHost": "http://localhost:5090",[m
+[32m+[m[32m  "LlamaApiUrl": "http://localhost:8081/completion",[m
+   "AllowedHosts": "*"[m
+ }[m
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfo.cs b/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfo.cs[m
+[1mindex 6a4d7d8..45a8519 100644[m
+[1m--- a/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfo.cs[m
+[1m+++ b/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfo.cs[m
+[36m@@ -14,7 +14,7 @@[m [musing System.Reflection;[m
+ [assembly: System.Reflection.AssemblyCompanyAttribute("ChatBotLamaApi")][m
+ [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")][m
+ [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")][m
+[31m-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f5739ba9fa6047f3a8e02f5de1a63b7185476ed9")][m
+[32m+[m[32m[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ec854b2bc735e231737e015ed5ef8ab68bffa13a")][m
+ [assembly: System.Reflection.AssemblyProductAttribute("ChatBotLamaApi")][m
+ [assembly: System.Reflection.AssemblyTitleAttribute("ChatBotLamaApi")][m
+ [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")][m
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfoInputs.cache b/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfoInputs.cache[m
+[1mindex 5c4e294..d911971 100644[m
+[1m--- a/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfoInputs.cache[m
+[1m+++ b/obj/Debug/net8.0/ChatBotLamaApi.AssemblyInfoInputs.cache[m
+[36m@@ -1 +1 @@[m
+[31m-d92a41fae0dcff3a78c7d17411956c4a0608ce122031f6a9c5d1cdb557cb7e28[m
+[32m+[m[32mc4834eeafeb4789dbf9af002263e08e5934ee21a01d07e7514e1d22b6ea49f64[m
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.csproj.CoreCompileInputs.cache b/obj/Debug/net8.0/ChatBotLamaApi.csproj.CoreCompileInputs.cache[m
+[1mindex fc80ff8..5afe16e 100644[m
+[1m--- a/obj/Debug/net8.0/ChatBotLamaApi.csproj.CoreCompileInputs.cache[m
+[1m+++ b/obj/Debug/net8.0/ChatBotLamaApi.csproj.CoreCompileInputs.cache[m
+[36m@@ -1 +1 @@[m
+[31m-5e2ac6e108a9f6f99a98383c052b0fd4bb5985c71146c4bf4ba57990c14c718a[m
+[32m+[m[32m96fb3374f00da77cce01211cefd3f9af6da07b9814e4885eea97ea6e95e34db3[m
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.dll b/obj/Debug/net8.0/ChatBotLamaApi.dll[m
+[1mindex ee1feb0..89830c7 100644[m
+Binary files a/obj/Debug/net8.0/ChatBotLamaApi.dll and b/obj/Debug/net8.0/ChatBotLamaApi.dll differ
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.pdb b/obj/Debug/net8.0/ChatBotLamaApi.pdb[m
+[1mindex 1f5d88f..0acff5f 100644[m
+Binary files a/obj/Debug/net8.0/ChatBotLamaApi.pdb and b/obj/Debug/net8.0/ChatBotLamaApi.pdb differ
+[1mdiff --git a/obj/Debug/net8.0/ChatBotLamaApi.sourcelink.json b/obj/Debug/net8.0/ChatBotLamaApi.sourcelink.json[m
+[1mindex d9d1eaa..f534641 100644[m
+[1m--- a/obj/Debug/net8.0/ChatBotLamaApi.sourcelink.json[m
+[1m+++ b/obj/Debug/net8.0/ChatBotLamaApi.sourcelink.json[m
+[36m@@ -1 +1 @@[m
+[31m-{"documents":{"C:\\Users\\rashe\\source\\repos\\ChatBotLlama\\ChatBotLamaApi\\*":"https://raw.githubusercontent.com/PrivateHudson1/ChatBotLamaApi/f4978f3a24c90bbda09fc69351c27a9f64f90c93/*"}}[m
+\ No newline at end of file[m
+[32m+[m[32m{"documents":{"C:\\Users\\rashe\\source\\repos\\ChatBotLlama\\ChatBotLamaApi\\*":"https://raw.githubusercontent.com/PrivateHudson1/ChatBotLamaApi/ec854b2bc735e231737e015ed5ef8ab68bffa13a/*"}}[m
+\ No newline at end of file[m
+[1mdiff --git a/obj/Debug/net8.0/apphost.exe b/obj/Debug/net8.0/apphost.exe[m
+[1mindex b35b167..c0128ed 100644[m
+Binary files a/obj/Debug/net8.0/apphost.exe and b/obj/Debug/net8.0/apphost.exe differ
+[1mdiff --git a/obj/Debug/net8.0/ref/ChatBotLamaApi.dll b/obj/Debug/net8.0/ref/ChatBotLamaApi.dll[m
+[1mindex c4a1c48..5bed222 100644[m
+Binary files a/obj/Debug/net8.0/ref/ChatBotLamaApi.dll and b/obj/Debug/net8.0/ref/ChatBotLamaApi.dll differ
+[1mdiff --git a/obj/Debug/net8.0/refint/ChatBotLamaApi.dll b/obj/Debug/net8.0/refint/ChatBotLamaApi.dll[m
+[1mindex c4a1c48..5bed222 100644[m
+Binary files a/obj/Debug/net8.0/refint/ChatBotLamaApi.dll and b/obj/Debug/net8.0/refint/ChatBotLamaApi.dll differ
+[1mdiff --git a/obj/Debug/net8.0/rjsmcshtml.dswa.cache.json b/obj/Debug/net8.0/rjsmcshtml.dswa.cache.json[m
+[1mindex 73970c7..f03e6a6 100644[m
+[1m--- a/obj/Debug/net8.0/rjsmcshtml.dswa.cache.json[m
+[1m+++ b/obj/Debug/net8.0/rjsmcshtml.dswa.cache.json[m
+[36m@@ -1 +1 @@[m
+[31m-{"GlobalPropertiesHash":"QkwyU256zkQ8El1Y2AQaLlJGSXbuxsuipDoAUrNJvIE=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["6rl8mDeMNPvJjVTT8q9CX8F1JZGhD5rIrzFuVY/6pmY=","OeQzwqAOtBajIXnFY0lb4/DRq5z8vC0YeReHy6KZqro=","F7rErFRizx6/Fd8SBTNERp\u002Bwi0QC1lb3jSyTjNO1MqM=","RCC9CNCx/CwSk19ZK/7A5n3JR7WzU2gKzSSwbFUMwUs=","SmgW77N05mka\u002BDCHTtAMipVMG2sxZSXMF2kOl2xdP90="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
+[32m+[m[32m{"GlobalPropertiesHash":"QkwyU256zkQ8El1Y2AQaLlJGSXbuxsuipDoAUrNJvIE=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["394mnLtTQdAtNv2AhtqqiJ0BFiZxYGKH//CVXS3VKdM=","t8SneMSJ31Rl7BvWSVnDUUejwtWRK/Ow5h15NDrmatw=","F7rErFRizx6/Fd8SBTNERp\u002Bwi0QC1lb3jSyTjNO1MqM=","RCC9CNCx/CwSk19ZK/7A5n3JR7WzU2gKzSSwbFUMwUs=","GalcQGjLPPAVWXT2KvwIWwWVe6rf2NJNhQ\u002BA0bkTNP8="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
+[1mdiff --git a/obj/Debug/net8.0/rjsmrazor.dswa.cache.json b/obj/Debug/net8.0/rjsmrazor.dswa.cache.json[m
+[1mindex b77713a..1016994 100644[m
+[1m--- a/obj/Debug/net8.0/rjsmrazor.dswa.cache.json[m
+[1m+++ b/obj/Debug/net8.0/rjsmrazor.dswa.cache.json[m
+[36m@@ -1 +1 @@[m
+[31m-{"GlobalPropertiesHash":"jXv1qFcutUxmgovXajptPfuYiGun+xvyX0VHgc8+cYk=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["6rl8mDeMNPvJjVTT8q9CX8F1JZGhD5rIrzFuVY/6pmY=","OeQzwqAOtBajIXnFY0lb4/DRq5z8vC0YeReHy6KZqro=","F7rErFRizx6/Fd8SBTNERp\u002Bwi0QC1lb3jSyTjNO1MqM=","RCC9CNCx/CwSk19ZK/7A5n3JR7WzU2gKzSSwbFUMwUs=","SmgW77N05mka\u002BDCHTtAMipVMG2sxZSXMF2kOl2xdP90="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
+[32m+[m[32m{"GlobalPropertiesHash":"jXv1qFcutUxmgovXajptPfuYiGun+xvyX0VHgc8+cYk=","FingerprintPatternsHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["394mnLtTQdAtNv2AhtqqiJ0BFiZxYGKH//CVXS3VKdM=","t8SneMSJ31Rl7BvWSVnDUUejwtWRK/Ow5h15NDrmatw=","F7rErFRizx6/Fd8SBTNERp\u002Bwi0QC1lb3jSyTjNO1MqM=","RCC9CNCx/CwSk19ZK/7A5n3JR7WzU2gKzSSwbFUMwUs=","GalcQGjLPPAVWXT2KvwIWwWVe6rf2NJNhQ\u002BA0bkTNP8="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
+[1mdiff --git a/obj/Debug/net8.0/rpswa.dswa.cache.json b/obj/Debug/net8.0/rpswa.dswa.cache.json[m
+[1mindex 2f7da2d..42dbcb8 100644[m
+[1m--- a/obj/Debug/net8.0/rpswa.dswa.cache.json[m
+[1m+++ b/obj/Debug/net8.0/rpswa.dswa.cache.json[m
+[36m@@ -1 +1 @@[m
+[31m-{"GlobalPropertiesHash":"aSfVydpXW8Q/RHQ3UZVJFwdp/PQ3763J+nJWqVQ2+fU=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["6rl8mDeMNPvJjVTT8q9CX8F1JZGhD5rIrzFuVY/6pmY=","chjFNoTQ26bJ7Wi7HCMSaJuo9e3OcdnGQrA2NgAkSl8="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
+[32m+[m[32m{"GlobalPropertiesHash":"aSfVydpXW8Q/RHQ3UZVJFwdp/PQ3763J+nJWqVQ2+fU=","FingerprintPatternsHash":"gq3WsqcKBUGTSNle7RKKyXRIwh7M8ccEqOqYvIzoM04=","PropertyOverridesHash":"8ZRc1sGeVrPBx4lD717BgRaQekyh78QKV9SKsdt638U=","InputHashes":["394mnLtTQdAtNv2AhtqqiJ0BFiZxYGKH//CVXS3VKdM=","t8SneMSJ31Rl7BvWSVnDUUejwtWRK/Ow5h15NDrmatw="],"CachedAssets":{},"CachedCopyCandidates":{}}[m
+\ No newline at end of file[m
