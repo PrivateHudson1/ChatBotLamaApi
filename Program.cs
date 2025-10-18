@@ -1,10 +1,17 @@
 using ChatBotLamaApi.Handlers;
+using ChatBotLamaApi.Interfaces;
 using ChatBotLamaApi.Services;
+using Microsoft.AspNetCore.Authentication;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
 var apiKey = builder.Configuration["ApiKey"] ?? "default-secret-key-123";
+var corsHost = builder.Configuration["CorsHost"];
+var redisHost= builder.Configuration["RedisHost"];
 // Add services to the container.
+
+
 
 builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -22,7 +29,7 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
     {
-        policy.WithOrigins("http://localhost:5090")
+        policy.WithOrigins(corsHost)
               .AllowAnyMethod()
               .AllowAnyHeader()
               .AllowCredentials();
@@ -31,20 +38,33 @@ builder.Services.AddCors(options =>
 
 builder.Services.AddSignalR();
 
+builder.Services.AddSingleton<IRateLimiter, RedisRateLimiter>();
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(redisHost));
+
 
 
 builder.Services.AddAuthentication(options =>
 {
-    options.DefaultAuthenticateScheme = ApiKeyAuthenticationOptions.DefaultScheme;
-    options.DefaultChallengeScheme = ApiKeyAuthenticationOptions.DefaultScheme;
+    options.DefaultAuthenticateScheme = "CookieAuth";
+    options.DefaultChallengeScheme = "CookieAuth";
+    options.DefaultScheme = "CookieAuth";
 })
-.AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(
-    ApiKeyAuthenticationOptions.DefaultScheme,
-    options => options.ApiKey = apiKey);
+.AddScheme<AuthenticationSchemeOptions, CookieAuthenticationHandler>(
+    "CookieAuth",
+    options =>
+    {
+
+    });
+
 
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+
+app.UseMiddleware<UserIdMiddleware>();
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -67,5 +87,6 @@ app.UseAuthorization();
 app.MapHub<ChatHub>("/chatHub");
 
 app.MapControllers();
+
 
 app.Run();
