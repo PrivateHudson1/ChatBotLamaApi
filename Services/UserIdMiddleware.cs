@@ -60,7 +60,6 @@ namespace ChatBotLamaApi.Services
                 {
                     _logger.LogInformation($"Valid session found for user: {userId}");
 
-
                 }
             }
                 _logger.LogInformation($"Cookies contains user_id: {context.Request.Cookies["user_id"]}");

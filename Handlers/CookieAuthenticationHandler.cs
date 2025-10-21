@@ -34,6 +34,9 @@ namespace ChatBotLamaApi.Handlers
                 return AuthenticateResult.Fail("User ID not found in cookies");
             }
 
+            var redisKey = $"session:{userId}:requests_left";
+
+
 
             var sessionExists = await _ratelimiter.SessionExistsAsync(userId);
             if (!sessionExists)
@@ -41,8 +44,14 @@ namespace ChatBotLamaApi.Handlers
                 return AuthenticateResult.Fail("Session not found in Redis");
             }
 
-            _logger.LogInformation($"Authorizing user: {userId}");
 
+            var allowed = await _ratelimiter.TryConsumeRequestAsync(userId);
+            if (!allowed)
+            {
+                return AuthenticateResult.Fail("Request limit exceeded");
+            }
+
+            _logger.LogInformation($"Authorizing user: {userId}");
             var claims = new[] {
             new Claim(ClaimTypes.Name, userId),
             new Claim(ClaimTypes.NameIdentifier, userId),

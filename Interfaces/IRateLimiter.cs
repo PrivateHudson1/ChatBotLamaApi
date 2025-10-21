@@ -5,6 +5,7 @@
         Task<string> CreateSessionAsync();
         Task<bool> ValidateSessionAsync(string userId);
         Task<bool> SessionExistsAsync(string userId);
+        Task<bool> TryConsumeRequestAsync(string userId);
 
     }
 }
