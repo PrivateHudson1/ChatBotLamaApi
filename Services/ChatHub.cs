@@ -1,18 +1,23 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using ChatBotLamaApi.Interfaces;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 using System.Text.Json;
 
 namespace ChatBotLamaApi.Services
 {
     public class ChatHub : Hub
     {
-     
+
+        private readonly IRateLimiter _ratelimiter;
         private readonly ILogger<ChatHub> _logger;
         private readonly HttpClient _httpClient;
         private const string LlamaApiUrl = "http://192.168.0.3:8081/completion";
 
-        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger)
+        public ChatHub(HttpClient httpClient, ILogger<ChatHub> logger, IRateLimiter ratelimiter)
         {
+            _ratelimiter = ratelimiter;
             _httpClient = httpClient;
             _logger = logger;
         }
@@ -52,12 +57,23 @@ namespace ChatBotLamaApi.Services
 
                         if(!string.IsNullOrEmpty(aiResponse))
                         {
+                            var userId = Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                            var allowed = await _ratelimiter.TryConsumeRequestAsync(userId);
+                            if (!allowed)
+                            {
+                                _logger.LogInformation("Request counter is null");
+                                return;
+                            }
+
                             await Clients.Caller.SendAsync("ReceiveMessage", "AI", aiResponse);
                             _logger.LogInformation($"AI response sent to {connectionId}");
+                            _logger.LogInformation("Request counter decreased by one");
                         }
                         else
                         {
                             await Clients.Caller.SendAsync("ReceiveMessage", "AI", "Failed to generate the answer");
+
+
                         }
                     }
                         

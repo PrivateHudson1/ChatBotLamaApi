@@ -45,12 +45,6 @@ namespace ChatBotLamaApi.Handlers
             }
 
 
-            var allowed = await _ratelimiter.TryConsumeRequestAsync(userId);
-            if (!allowed)
-            {
-                return AuthenticateResult.Fail("Request limit exceeded");
-            }
-
             _logger.LogInformation($"Authorizing user: {userId}");
             var claims = new[] {
             new Claim(ClaimTypes.Name, userId),
