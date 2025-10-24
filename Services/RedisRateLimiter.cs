@@ -77,6 +77,25 @@ namespace ChatBotLamaApi.Services
 
             return true;
         }
+
+        public async Task<int> GetRemainingRequestsAsync(string userId) //updating available queries
+        {
+            if (string.IsNullOrEmpty(userId))
+                return 0;
+
+            var db = _redis.GetDatabase();
+            var sessionKey = $"session:{userId}";
+
+
+            var value = await db.HashGetAsync(sessionKey, "requests_left");
+
+            if (!value.HasValue)
+                return 0;
+
+
+            return (int)value;
+        }
+
     }
     
 }

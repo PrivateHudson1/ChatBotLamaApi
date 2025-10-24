@@ -6,6 +6,6 @@
         Task<bool> ValidateSessionAsync(string userId);
         Task<bool> SessionExistsAsync(string userId);
         Task<bool> TryConsumeRequestAsync(string userId);
-
+        Task<int> GetRemainingRequestsAsync(string userId);
     }
 }

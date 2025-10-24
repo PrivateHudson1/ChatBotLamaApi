@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Threading.RateLimiting;
 
 namespace ChatBotLamaApi.Services
 {
@@ -22,13 +23,37 @@ namespace ChatBotLamaApi.Services
             _logger = logger;
         }
 
+    
+
+
+        public async Task UpdateRemainingRequests()
+        {
+            var httpContext = Context.GetHttpContext();
+            if (httpContext == null)
+            {
+                _logger.LogInformation("context is null");
+                return;
+            }
+                
+
+            if (!httpContext.Request.Cookies.TryGetValue("user_id", out var userId) || string.IsNullOrEmpty(userId))
+                return;
+
+
+            var remaining = await _ratelimiter.GetRemainingRequestsAsync(userId);
+
+
+            await Clients.Caller.SendAsync("UpdateRemainingRequests", remaining);
+        }
+
+
         [Authorize]
         public async Task SendMessage(string message)
         {
             var connectionId = Context.ConnectionId;
             try
             {
-                await Clients.Caller.SendAsync("ReceiveMessage", "AI", "Thinking...");
+
                 var prompt = $"<s>[INST] {message} [/INST]";
 
                 var requestData = new
@@ -61,11 +86,13 @@ namespace ChatBotLamaApi.Services
                             var allowed = await _ratelimiter.TryConsumeRequestAsync(userId);
                             if (!allowed)
                             {
+                                await Clients.Caller.SendAsync("ReceiveMessage", "ChatBot", "Your day's attempts are over");
                                 _logger.LogInformation("Request counter is null");
                                 return;
                             }
-
+                            await Clients.Caller.SendAsync("ReceiveMessage", "AI", "Thinking...");
                             await Clients.Caller.SendAsync("ReceiveMessage", "AI", aiResponse);
+                            await UpdateRemainingRequests();
                             _logger.LogInformation($"AI response sent to {connectionId}");
                             _logger.LogInformation("Request counter decreased by one");
                         }
@@ -97,6 +124,7 @@ namespace ChatBotLamaApi.Services
         public override async Task OnConnectedAsync()
         {
             _logger.LogInformation($"Client connected: {Context.ConnectionId}");
+            await UpdateRemainingRequests();
             await base.OnConnectedAsync();
         }
 
